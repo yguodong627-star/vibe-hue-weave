@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0e0e11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>拾色 · Hue Weave</title>
+<style>
+:root{--bg:#0e0e11;--ink:#ecebe6;--mute:#85837e;--line:rgba(255,255,255,.1);--g1:#222;--g2:#222;--g3:#222;--g4:#222}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;overflow:hidden;overscroll-behavior:none}
+body{user-select:none;-webkit-user-select:none;touch-action:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.glow{position:fixed;inset:-25%;pointer-events:none;filter:blur(90px);opacity:.3;transition:opacity 1.4s;
+ background:radial-gradient(35% 35% at 22% 18%,var(--g1),transparent 70%),radial-gradient(35% 35% at 80% 20%,var(--g2),transparent 70%),radial-gradient(38% 38% at 20% 84%,var(--g3),transparent 70%),radial-gradient(38% 38% at 82% 82%,var(--g4),transparent 70%)}
+.grain{position:fixed;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.app{position:relative;height:100vh;height:100dvh;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 22px) 20px calc(env(safe-area-inset-bottom) + 18px)}
+header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:flex-end}
+.brand b{font-size:24px;font-weight:600;letter-spacing:.2em}
+.brand small{display:block;font-size:9.5px;letter-spacing:.38em;color:var(--mute);margin-top:6px}
+.stats{display:flex;gap:22px;text-align:right}
+.stat span{display:block;font-size:10px;letter-spacing:.24em;color:var(--mute);margin-bottom:3px}
+.stat em{font-style:normal;font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.stat.lv{cursor:pointer}
+.stage{flex:1;width:100%;max-width:520px;min-height:0;display:flex;align-items:center;justify-content:center;margin:22px 0 14px}
+.board{position:relative;transition:width .6s cubic-bezier(.2,.8,.2,1),height .6s cubic-bezier(.2,.8,.2,1)}
+.tile{position:absolute;left:0;top:0;border-radius:var(--r,7px);transition:transform .42s cubic-bezier(.2,.8,.2,1),width .6s,height .6s,border-radius .6s,box-shadow .2s;will-change:transform;cursor:grab}
+.board.solved .tile{border-radius:0}
+.board.solved{border-radius:14px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+.tile.anchor{cursor:default}
+.tile.anchor::after{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--dot);transition:opacity .5s}
+.board.solved .tile::after{opacity:0}
+.tile.sel{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--ink);z-index:5}
+.tile.drag{transition:width .6s,height .6s,border-radius .6s,box-shadow .2s;z-index:10;box-shadow:0 18px 40px rgba(0,0,0,.55);cursor:grabbing}
+.tile.hint{animation:pulse .9s ease 3}
+.tile.nope{animation:nope .35s ease}
+@keyframes pulse{50%{box-shadow:0 0 0 2px var(--bg),0 0 0 4.5px #fff;z-index:6}}
+@keyframes nope{25%{margin-left:-3px}75%{margin-left:3px}}
+body.won footer,body.won .caption{display:none}
+body.won .stage{margin-bottom:calc(var(--sh,300px) + 6px);transition:margin .5s}
+.caption{height:18px;font-size:12.5px;letter-spacing:.16em;color:var(--mute);text-align:center;transition:opacity .4s}
+footer{display:flex;gap:10px;margin-top:16px}
+.btn{height:40px;padding:0 18px;border-radius:20px;border:1px solid var(--line);font-size:13px;letter-spacing:.14em;background:rgba(255,255,255,.03);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .2s,transform .15s}
+.btn:active{transform:scale(.96)}
+.btn:hover{background:rgba(255,255,255,.08)}
+.btn.primary{background:var(--ink);color:#111;border-color:transparent}
+.sheet{position:fixed;left:50%;bottom:0;width:min(520px,100%);transform:translate(-50%,110%);transition:transform .55s cubic-bezier(.2,.8,.2,1);
+ background:rgba(22,22,26,.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;padding:22px 22px calc(env(safe-area-inset-bottom) + 20px);z-index:20}
+.sheet.on{transform:translate(-50%,0)}
+.sheet .k{font-size:10.5px;letter-spacing:.3em;color:var(--mute)}
+.sheet h2{margin:8px 0 4px;font-size:26px;font-weight:600;letter-spacing:.12em}
+.sheet p{margin:0;color:var(--mute);font-size:13px;letter-spacing:.06em}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 0}
+.chip{display:flex;flex-direction:column;gap:7px;align-items:flex-start;padding:8px;border-radius:12px;border:1px solid var(--line);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;color:#cfcdc7}
+.chip i{display:block;width:100%;aspect-ratio:1.6;border-radius:7px}
+.row{display:flex;gap:10px}.row .btn{flex:1}
+.drawer{position:fixed;inset:0;background:rgba(10,10,12,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:30;opacity:0;pointer-events:none;transition:opacity .35s;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 22px) 20px 20px}
+.drawer.on{opacity:1;pointer-events:auto}
+.dh{width:100%;max-width:640px;display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px}
+.dh b{font-size:20px;letter-spacing:.2em;font-weight:600}.dh small{display:block;color:var(--mute);font-size:11px;letter-spacing:.2em;margin-top:6px}
+.cards{width:100%;max-width:640px;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;overflow-y:auto;padding-bottom:30px;touch-action:pan-y}
+.card{text-align:left;padding:0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.card canvas{display:block;width:100%;aspect-ratio:1.25}
+.card div{padding:9px 10px 10px;font-size:12px;letter-spacing:.1em}
+.card div span{display:block;color:var(--mute);font-size:10px;margin-top:3px;letter-spacing:.14em}
+.empty{grid-column:1/-1;color:var(--mute);font-size:13px;letter-spacing:.12em;text-align:center;padding:60px 0}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 18px);transform:translate(-50%,-30px);opacity:0;transition:.3s;background:var(--ink);color:#111;font-size:12.5px;letter-spacing:.12em;padding:8px 16px;border-radius:16px;z-index:40;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="grain"></div>
+<div class="app">
+  <header>
+    <div class="brand"><b>拾色</b><small>HUE WEAVE</small></div>
+    <div class="stats">
+      <div class="stat lv" id="lvBtn"><span>关卡</span><em id="lv">1</em></div>
+      <div class="stat"><span>步数</span><em id="mv">0</em></div>
+    </div>
+  </header>
+  <div class="stage" id="stage"><div class="board" id="board"></div></div>
+  <div class="caption" id="cap"></div>
+  <footer>
+    <button class="btn" id="hintBtn">提示</button>
+    <button class="btn" id="resetBtn">重来</button>
+    <button class="btn" id="colBtn">色卡</button>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="k" id="wk">第 1 关 · 完成</div>
+  <h2 id="wn">—</h2>
+  <p id="ws"></p>
+  <div class="chips" id="chips"></div>
+  <div class="row"><button class="btn" id="cssBtn">复制 CSS</button><button class="btn primary" id="nextBtn">下一关</button></div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="dh"><div><b>色卡册</b><small id="dcount">0 张</small></div><button class="btn" id="closeBtn">关闭</button></div>
+  <div class="cards" id="cards"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const KEY='hueweave.v1';
+let store;try{store=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+store=store||{cur:1,max:1,best:{},col:{}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}};
+
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ---------- OKLab color ---------- */
+const lch=(L,C,h)=>{h*=Math.PI/180;return[L,C*Math.cos(h),C*Math.sin(h)]};
+function lin([L,a,b]){const l=(L+.3963377774*a+.2158037573*b)**3,m=(L-.1055613458*a-.0638541728*b)**3,s=(L-.0894841775*a-1.2914855480*b)**3;
+ return[4.0767416621*l-3.3077115913*m+.2309699292*s,-1.2684380046*l+2.6097574011*m-.3413193965*s,-.0041960863*l-.7034186147*m+1.7076147010*s]}
+const ok=c=>c.every(v=>v>=-1e-4&&v<=1.0001);
+const gam=x=>{x=Math.min(1,Math.max(0,x));return x<=.0031308?12.92*x:1.055*Math.pow(x,1/2.4)-.055};
+const rgb=lab=>lin(lab).map(v=>Math.round(gam(v)*255));
+const hex=c=>'#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
+function fit(L,C,h){if(ok(lin(lch(L,C,h))))return lch(L,C,h);let lo=0,hi=C;for(let i=0;i<22;i++){const m=(lo+hi)/2;ok(lin(lch(L,m,h)))?lo=m:hi=m}return lch(L,lo,h)}
+const mix=(cs,u,v)=>[0,1,2].map(k=>cs[0][k]*(1-u)*(1-v)+cs[1][k]*u*(1-v)+cs[2][k]*(1-u)*v+cs[3][k]*u*v);
+function vivid(cs,u,v){const w=[(1-u)*(1-v),u*(1-v),(1-u)*v,u*v];const P=cs.map(c=>[c[0],Math.hypot(c[1],c[2]),Math.atan2(c[2],c[1])*180/Math.PI]);
+ const h0=P[0][2];const hs=P.map(p=>{let d=((p[2]-h0)%360+540)%360-180;return h0+d});
+ let L=0,C=0,h=0;for(let k=0;k<4;k++){L+=w[k]*P[k][0];C+=w[k]*P[k][1];h+=w[k]*hs[k]}return fit(L,C,h)}
+const hueOf=lab=>(Math.atan2(lab[2],lab[1])*180/Math.PI+360)%360;
+const NAMES=[[20,'胭脂'],[45,'珊瑚'],[75,'琥珀'],[105,'秋香'],[140,'竹青'],[175,'松绿'],[205,'天水碧'],[240,'霁蓝'],[275,'黛蓝'],[305,'藕荷'],[335,'绛紫'],[360,'海棠']];
+const nameOf=lab=>{const h=hueOf(lab);if(Math.hypot(lab[1],lab[2])<.03)return lab[0]>.7?'月白':'墨灰';return NAMES.find(n=>h<n[0])[1]};
+
+/* ---------- levels ---------- */
+const PLAN=[[4,5,'frame'],[4,6,'sides'],[5,6,'frame'],[5,7,'sides'],[5,7,'lattice'],[6,8,'sides'],[6,8,'lattice'],[6,9,'corners']];
+function config(n){if(n<=PLAN.length)return PLAN[n-1];const r=rng(n*131+5);const S=[[6,9],[7,9],[7,10],[7,11],[8,11]],P=['lattice','sides','corners','lattice','corners'];
+ const s=S[Math.min(S.length-1,Math.floor(r()*(2+Math.min(3,(n-9)/4))))];return[s[0],s[1],P[Math.floor(r()*P.length)]]}
+function anchorAt(c,r,C,R,p){const ec=c===0||c===C-1,er=r===0||r===R-1;if(ec&&er)return true;
+ if(p==='frame')return ec||er;if(p==='sides')return ec;if(p==='lattice')return(ec||er)&&(c+r)%2===0;return false}
+function corners(n){const r=rng(n*7919+13);const h0=r()*360,d1=55+r()*55,d2=55+r()*55;
+ let cs=[fit(.92,.09,h0),fit(.76,.17,h0+d1),fit(.68,.15,h0-d2),fit(.44,.13,h0+150+r()*60)];
+ const O=[[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]][Math.floor(r()*4)];cs=O.map(i=>cs[i]);
+ if(r()<.5)cs=[cs[0],cs[2],cs[1],cs[3]];return cs}
+
+/* ---------- state ---------- */
+const board=$('#board'),stage=$('#stage');
+let S=null,els=[],drag=null;
+const cap=t=>{$('#cap').textContent=t};
+function start(n){
+ const[C,R,p]=config(n),cs=corners(n);store.cur=n;save();
+ const tiles=[];for(let r=0;r<R;r++)for(let c=0;c<C;c++){const lab=vivid(cs,c/(C-1),r/(R-1));tiles.push({i:r*C+c,lab,col:hex(rgb(lab)),anchor:anchorAt(c,r,C,R,p)})}
+ S={n,C,R,p,cs,tiles,slot:tiles.map(t=>t.i),moves:0,hints:0,sel:null,solved:false,locked:true};
+ board.innerHTML='';board.classList.remove('solved');document.body.classList.remove('won');$('#sheet').classList.remove('on');
+ els=tiles.map(t=>{const d=document.createElement('div');d.className='tile'+(t.anchor?' anchor':'');d.dataset.i=t.i;d.style.background=t.col;
+  d.style.setProperty('--dot',t.lab[0]>.62?'rgba(0,0,0,.42)':'rgba(255,255,255,.62)');board.appendChild(d);return d});
+ const H=[0,1,2,3].map(i=>hex(rgb(cs[i])));['--g1','--g2','--g3','--g4'].forEach((k,i)=>document.documentElement.style.setProperty(k,H[i]));
+ document.querySelector('meta[name=theme-color]').content='#0e0e11';
+ $('#lv').textContent=n;$('#mv').textContent=0;
+ layout();cap('先记住它');
+ clearTimeout(S.t);S.t=setTimeout(shuffle,1700);
+}
+function shuffle(){
+ const mov=S.tiles.filter(t=>!t.anchor).map(t=>t.i);let perm;
+ for(let k=0;k<40;k++){perm=mov.slice();for(let i=perm.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[perm[i],perm[j]]=[perm[j],perm[i]]}
+  if(perm.filter((v,i)=>v===mov[i]).length<=Math.max(1,mov.length*.08))break}
+ mov.forEach((s,i)=>S.slot[s]=perm[i]);
+ layout(true);cap('拖动或点按两块交换 · 带点的不动');
+ setTimeout(()=>{S.locked=false;els.forEach(e=>e.style.transitionDelay='0s');if(location.hash==='#demo-win')demoWin()},900);
+}
+function layout(stagger){
+ if(!S)return;const st=stage.getBoundingClientRect();const gap=S.solved?0:(S.C>6?2:3);
+ const size=Math.max(14,Math.floor(Math.min((st.width-gap*(S.C-1))/S.C,(st.height-gap*(S.R-1))/S.R,76)));
+ S.size=size;S.gap=gap;board.style.width=(size*S.C+gap*(S.C-1))+'px';board.style.height=(size*S.R+gap*(S.R-1))+'px';
+ const r=Math.max(3,Math.round(size*.12));board.style.setProperty('--r',r+'px');
+ S.slot.forEach((t,s)=>{const e=els[t];if(e===(drag&&drag.moved&&drag.el))return;e.style.width=e.style.height=size+'px';
+  e.style.transitionDelay=stagger?(Math.random()*.32).toFixed(2)+'s':'0s';
+  e.style.transform=`translate(${(s%S.C)*(size+gap)}px,${Math.floor(s/S.C)*(size+gap)}px)`});
+}
+const slotOf=i=>S.slot.indexOf(i);
+function select(i){if(S.sel!=null)els[S.sel].classList.remove('sel');S.sel=i;if(i!=null)els[i].classList.add('sel')}
+function swap(a,b){[S.slot[a],S.slot[b]]=[S.slot[b],S.slot[a]];S.moves++;$('#mv').textContent=S.moves;select(null);
+ navigator.vibrate&&navigator.vibrate(6);layout();check()}
+function tap(t){if(S.sel==null)return select(t.i);if(S.sel===t.i)return select(null);swap(slotOf(S.sel),slotOf(t.i))}
+function nope(el){el.classList.remove('nope');void el.offsetWidth;el.classList.add('nope')}
+
+board.addEventListener('pointerdown',e=>{
+ if(!S||S.locked)return;const el=e.target.closest('.tile');if(!el)return;const t=S.tiles[+el.dataset.i];
+ if(t.anchor){nope(el);return}
+ drag={el,t,sx:e.clientX,sy:e.clientY,moved:false,from:slotOf(t.i)};el.setPointerCapture(e.pointerId);
+});
+board.addEventListener('pointermove',e=>{
+ if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+ if(!drag.moved&&Math.hypot(dx,dy)>7){drag.moved=true;drag.el.classList.add('drag');select(null)}
+ if(drag.moved){const s=drag.from,k=S.size+S.gap;drag.el.style.transform=`translate(${(s%S.C)*k+dx}px,${Math.floor(s/S.C)*k+dy}px) scale(1.1)`}
+});
+function endDrag(e){
+ if(!drag)return;const d=drag;drag=null;
+ if(!d.moved){tap(d.t);return}
+ d.el.classList.remove('drag');const rc=board.getBoundingClientRect(),k=S.size+S.gap;
+ const c=Math.floor((e.clientX-rc.left)/k),r=Math.floor((e.clientY-rc.top)/k);
+ if(c>=0&&c<S.C&&r>=0&&r<S.R){const to=r*S.C+c;if(to!==d.from&&!S.tiles[S.slot[to]].anchor){swap(d.from,to);return}}
+ layout();
+}
+board.addEventListener('pointerup',endDrag);board.addEventListener('pointercancel',endDrag);
+
+function check(){
+ if(!S.slot.every((t,s)=>t===s))return;S.solved=true;S.locked=true;cap('');
+ const n=S.n,H=S.cs.map(c=>hex(rgb(c))),name=nameOf(S.cs[0])+' · '+nameOf(S.cs[3]);
+ const prev=store.best[n];if(!prev||S.moves<prev)store.best[n]=S.moves;
+ store.col[n]={h:H,name};store.max=Math.max(store.max,n+1);save();
+ setTimeout(()=>{board.classList.add('solved');layout();cap(name)},380);
+ setTimeout(()=>{
+  $('#wk').textContent=`第 ${n} 关 · 完成`;$('#wn').textContent=name;
+  $('#ws').textContent=`${S.moves} 步`+(S.hints?` · 用了 ${S.hints} 次提示`:'')+` · 最佳 ${store.best[n]} 步`;
+  $('#chips').innerHTML=['左上','右上','左下','右下'].map((p,i)=>`<button class="chip" data-h="${H[i]}"><i style="background:${H[i]}"></i>${H[i].toUpperCase()}</button>`).join('');
+  const sh=$('#sheet');sh.classList.add('on');document.body.style.setProperty('--sh',sh.offsetHeight+'px');document.body.classList.add('won');layout();
+ },1300);
+}
+function demoWin(){S.slot=S.tiles.map(t=>t.i);S.moves=23;$('#mv').textContent=23;layout();check()}
+
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e.t);e.t=setTimeout(()=>e.classList.remove('on'),1400)}
+function copy(t){const done=()=>toast('已复制');
+ if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(t).then(done,()=>fb());else fb();
+ function fb(){const a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity=0;document.body.appendChild(a);a.select();try{document.execCommand('copy');done()}catch(e){toast('复制失败')}a.remove()}}
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)copy(b.dataset.h)});
+$('#cssBtn').onclick=()=>{const H=S.cs.map(c=>hex(rgb(c)));
+ copy(`/* 拾色 · 第${S.n}关 · ${$('#wn').textContent} */\n--hue-tl: ${H[0]};\n--hue-tr: ${H[1]};\n--hue-bl: ${H[2]};\n--hue-br: ${H[3]};\nbackground: linear-gradient(135deg, ${H[0]}, ${H[3]});`)};
+$('#nextBtn').onclick=()=>start(S.n+1);
+$('#resetBtn').onclick=()=>start(S.n);
+$('#hintBtn').onclick=()=>{
+ if(!S||S.locked)return;const wrong=S.slot.map((t,s)=>t!==s?s:-1).filter(s=>s>=0);if(!wrong.length)return;
+ const s=wrong[Math.floor(Math.random()*wrong.length)];const a=els[S.slot[s]],b=els[s];
+ [a,b].forEach(e=>{e.classList.remove('hint');void e.offsetWidth;e.classList.add('hint')});S.hints++;cap('闪的这两块，换一下');
+};
+
+/* ---------- collection ---------- */
+function thumb(H){const cv=document.createElement('canvas'),W=40,Hh=32;cv.width=W;cv.height=Hh;const x=cv.getContext('2d'),im=x.createImageData(W,Hh);
+ const cs=H.map(h=>{const v=[1,3,5].map(i=>parseInt(h.substr(i,2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);
+  const l=Math.cbrt(.4122214708*v[0]+.5363325363*v[1]+.0514459929*v[2]),m=Math.cbrt(.2119034982*v[0]+.6806995451*v[1]+.1073969566*v[2]),s=Math.cbrt(.0883024619*v[0]+.2817188376*v[1]+.6299787005*v[2]);
+  return[.2104542553*l+.7936177850*m-.0040720468*s,1.9779984951*l-2.4285922050*m+.4505937099*s,.0259040371*l+.7827717662*m-.8086757660*s]});
+ for(let y=0;y<Hh;y++)for(let X=0;X<W;X++){const c=rgb(vivid(cs,X/(W-1),y/(Hh-1))),o=(y*W+X)*4;im.data[o]=c[0];im.data[o+1]=c[1];im.data[o+2]=c[2];im.data[o+3]=255}
+ x.putImageData(im,0,0);return cv}
+function openCol(){const box=$('#cards');box.innerHTML='';const ks=Object.keys(store.col).map(Number).sort((a,b)=>a-b);
+ $('#dcount').textContent=`已收 ${ks.length} 张 · 点一张重玩`;
+ if(!ks.length)box.innerHTML='<div class="empty">完成一关，这里就会多一张色卡</div>';
+ ks.forEach(k=>{const c=store.col[k],b=document.createElement('button');b.className='card';b.appendChild(thumb(c.h));
+  const d=document.createElement('div');d.innerHTML=`${c.name}<span>第 ${k} 关 · 最佳 ${store.best[k]??'—'} 步</span>`;b.appendChild(d);
+  b.onclick=()=>{$('#drawer').classList.remove('on');start(k)};box.appendChild(b)});
+ $('#drawer').classList.add('on')}
+$('#colBtn').onclick=openCol;$('#lvBtn').onclick=openCol;$('#closeBtn').onclick=()=>$('#drawer').classList.remove('on');
+
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>layout(),80)});
+const q=new URLSearchParams(location.search).get('level');
+start(q?Math.max(1,+q):(store.cur||1));
+if(location.hash==='#demo-col'){[1,2,3,4,5,6].forEach(n=>{const cs=corners(n);store.col[n]={h:cs.map(c=>hex(rgb(c))),name:nameOf(cs[0])+' · '+nameOf(cs[3])};store.best[n]=10+n*3});setTimeout(openCol,300)}
+})();
+</script>
+</body>
+</html>
